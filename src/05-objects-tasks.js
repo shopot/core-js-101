@@ -20,9 +20,14 @@
  *    console.log(r.height);      // => 20
  *    console.log(r.getArea());   // => 200
  */
-function Rectangle(/* width, height */) {
-  throw new Error('Not implemented');
+function Rectangle(width, height) {
+  this.width = width;
+  this.height = height;
 }
+
+Rectangle.prototype.getArea = function getArea() {
+  return this.height * this.width;
+};
 
 
 /**
@@ -35,8 +40,8 @@ function Rectangle(/* width, height */) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { width: 10, height : 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 
@@ -51,8 +56,8 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  return Object.setPrototypeOf(JSON.parse(json), proto);
 }
 
 
@@ -110,36 +115,162 @@ function fromJSON(/* proto, json */) {
  *  For more examples see unit tests.
  */
 
-const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  id(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  class(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  attr(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
-  },
+const NODE_POSITIONS = {
+  NONE: 0,
+  ELEMENT: 1,
+  ID: 2,
+  CLASS: 3,
+  ATTR: 4,
+  PSEUDO_CLASS: 5,
+  PSEUDO_ELEMENT: 6,
 };
 
+class MySuperBaseElementSelector {
+  /**
+   * MySuperBaseElementSelector constructor
+   *
+   * @param {string} element
+   * @param {string} id
+   */
+  constructor() {
+    this.node = {
+      elements: [],
+      ids: [],
+      classes: [],
+      attrs: [],
+      pseudoClasses: [],
+      pseudoElements: [],
+    };
+
+    this.combined = '';
+
+    // Init position
+    this.position = NODE_POSITIONS.NONE;
+  }
+
+  validate(key) {
+    if (this.node[key].length !== 0) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector',
+      );
+    }
+  }
+
+  /**
+   *  Set position
+   *
+   * @param {number} position
+   */
+  setPosition(position) {
+    if (position < this.position) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element',
+      );
+    }
+
+    this.position = position;
+  }
+
+  element(value) {
+    this.validate('elements');
+
+    this.setPosition(NODE_POSITIONS.ELEMENT);
+
+    this.node.elements.push(value);
+
+    return this;
+  }
+
+  id(value) {
+    this.validate('ids');
+
+    this.setPosition(NODE_POSITIONS.ID);
+
+    this.node.ids.push(`#${value}`);
+
+    return this;
+  }
+
+  class(value) {
+    this.setPosition(NODE_POSITIONS.CLASS);
+
+    this.node.classes.push(`.${value}`);
+
+    return this;
+  }
+
+  attr(value) {
+    this.setPosition(NODE_POSITIONS.ATTR);
+
+    this.node.attrs.push(`[${value}]`);
+
+    return this;
+  }
+
+  pseudoClass(value) {
+    this.setPosition(NODE_POSITIONS.PSEUDO_CLASS);
+
+    this.node.pseudoClasses.push(`:${value}`);
+
+    return this;
+  }
+
+  pseudoElement(value) {
+    this.validate('pseudoElements');
+
+    this.setPosition(NODE_POSITIONS.PSEUDO_ELEMENT);
+
+    this.node.pseudoElements.push(`::${value}`);
+
+    return this;
+  }
+
+  combine(selector1, combinator, selector2) {
+    this.combined += `${selector1.stringify()} ${combinator} ${selector2.stringify()}`;
+
+    return this;
+  }
+
+  stringify() {
+    const result = Object.keys(this.node).reduce((str, key) => {
+      const joined = this.node[key].join('');
+      return str + joined;
+    }, '');
+
+    return result + this.combined;
+  }
+}
+
+const cssSelectorBuilder = {
+  element(value) {
+    return new MySuperBaseElementSelector().element(value);
+  },
+
+  id(value) {
+    return new MySuperBaseElementSelector().id(value);
+  },
+
+  class(value) {
+    return new MySuperBaseElementSelector().class(value);
+  },
+
+  attr(value) {
+    return new MySuperBaseElementSelector().attr(value);
+  },
+
+  pseudoClass(value) {
+    return new MySuperBaseElementSelector().pseudoClass(value);
+  },
+
+  pseudoElement(value) {
+    return new MySuperBaseElementSelector().pseudoElement(value);
+  },
+
+  combine(selector1, combinator, selector2) {
+    const combined = new MySuperBaseElementSelector();
+    return combined.combine(selector1, combinator, selector2);
+  },
+};
 
 module.exports = {
   Rectangle,
